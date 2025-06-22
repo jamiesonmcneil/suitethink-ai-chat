@@ -3,7 +3,7 @@ const path = require('path');
 const { getHome, handleWebQuery } = require('./controllers/webController');
 const { Client } = require('pg');
 const twilio = require('twilio');
-const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 require('dotenv').config({ path: './.env' });
 
 const app = express();
@@ -14,7 +14,15 @@ const client = new Client({ connectionString: process.env.DATABASE_URL });
 client.connect();
 
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+const transporter = nodemailer.createTransport({
+  host: 'mail.smtp2go.com',
+  port: 587,
+  auth: {
+    user: process.env.SMTP2GO_USERNAME,
+    pass: process.env.SMTP2GO_PASSWORD
+  }
+});
 
 app.get('/', getHome);
 app.get('/chat-widget.js', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat-widget.js')));
@@ -23,13 +31,12 @@ app.post('/query', handleWebQuery);
 app.post('/send-transcript-email', async (req, res) => {
   try {
     const { email, transcript } = req.body;
-    const msg = {
+    await transporter.sendMail({
+      from: 'noreply@suitethink.com',
       to: email,
-      from: 'no-reply@suitethink.com',
       subject: 'Storio Self Storage Chat Transcript',
       text: transcript
-    };
-    await sgMail.send(msg);
+    });
     console.log(`Email sent to ${email}`);
     res.json({ message: 'Transcript sent to your email.' });
   } catch (error) {
@@ -79,6 +86,20 @@ app.post('/submit-support-request', async (req, res) => {
       [query, method, email, phone]
     );
     console.log(`Support request submitted: ${query} via ${method}`);
+    if (method === 'email' && email) {
+      await transporter.sendMail({
+        from: 'noreply@suitethink.com',
+        to: email,
+        subject: 'Storio Support Request',
+        text: `Your question "${query}" has been received. A Support Specialist will follow up soon.`
+      });
+    } else if (method === 'sms' && phone) {
+      await twilioClient.messages.create({
+        body: `Your question "${query}" has been received. A Support Specialist will follow up soon.`,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: phone
+      });
+    }
     res.json({ message: `Support request sent via ${method}.` });
   } catch (error) {
     console.error('Support request error:', error);
