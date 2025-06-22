@@ -54,6 +54,11 @@
         <button id="supportSMS" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">SMS</button>
         <button id="supportCall" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Phone Call</button>
       </div>
+      <div id="contactPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;">
+        <p>Please provide your contact information.</p>
+        <input id="contactInput" type="text" style="width: 80%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; margin-bottom: 8px;" placeholder="Enter email or phone">
+        <button id="submitContact" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px;">Submit</button>
+      </div>
     </div>
     <form id="queryForm" style="padding: 12px; border-top: 1px solid #e5e7eb;">
       <div id="initial-inputs">
@@ -76,7 +81,7 @@
           <button type="submit" style="padding: 8px 12px; background: #4f46e5; color: #fff; border: none; border-radius: 0 6px 6px 0; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;">Send</button>
           <button id="shareTranscript" type="button" style="padding: 8px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;">Share</button>
         </div>
-        <div id="shareOptions" style="display: none; margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <div id="shareOptions" style="display: none; position: absolute; bottom: 60px; right: 12px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 8px; display: flex; flex-direction: column; gap: 4px; animation: popup 0.3s ease-out;">
           <button id="downloadTranscript" style="padding: 8px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">Download PDF</button>
           <button id="emailTranscript" style="padding: 8px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">Email</button>
           <button id="smsTranscript" style="padding: 8px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">SMS</button>
@@ -94,6 +99,10 @@
       @keyframes blink {
         0%, 20% { opacity: 1; }
         40%, 100% { opacity: 0; }
+      }
+      @keyframes popup {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
       }
     </style>
   `;
@@ -121,11 +130,15 @@
     const supportEmail = widget.querySelector('#supportEmail');
     const supportSMS = widget.querySelector('#supportSMS');
     const supportCall = widget.querySelector('#supportCall');
+    const contactPrompt = widget.querySelector('#contactPrompt');
+    const contactInput = widget.querySelector('#contactInput');
+    const submitContact = widget.querySelector('#submitContact');
     let userData = null;
     let conversationHistory = [];
     let lastQuery = '';
+    let pendingSupportMethod = '';
 
-    if (!form || !nameInput || !emailInput || !phoneInput || !queryInput || !chat || !initialInputs || !questionInput || !userInfo || !userLabel || !minimizeChat || !closeChat || !shareTranscript || !downloadTranscript || !emailTranscript || !smsTranscript || !copyLink || !thinking || !supportPrompt || !supportEmail || !supportSMS || !supportCall) {
+    if (!form || !nameInput || !emailInput || !phoneInput || !queryInput || !chat || !initialInputs || !questionInput || !userInfo || !userLabel || !minimizeChat || !closeChat || !shareTranscript || !downloadTranscript || !emailTranscript || !smsTranscript || !copyLink || !thinking || !supportPrompt || !supportEmail || !supportSMS || !supportCall || !contactPrompt || !contactInput || !submitContact) {
       throw new Error('Missing DOM elements');
     }
 
@@ -188,6 +201,13 @@
     }
 
     async function sendEmailTranscript() {
+      if (!userData.email) {
+        addMessage('Assistant', 'Please provide an email to send the transcript.');
+        pendingSupportMethod = 'emailTranscript';
+        contactPrompt.style.display = 'block';
+        contactInput.placeholder = 'Enter email';
+        return;
+      }
       const transcript = generateTranscript();
       try {
         const response = await fetch('/send-transcript-email', {
@@ -204,6 +224,13 @@
     }
 
     async function sendSMSTranscript() {
+      if (!userData.phone) {
+        addMessage('Assistant', 'Please provide a phone number to send the transcript.');
+        pendingSupportMethod = 'smsTranscript';
+        contactPrompt.style.display = 'block';
+        contactInput.placeholder = 'Enter phone';
+        return;
+      }
       const transcript = generateTranscript();
       try {
         const response = await fetch('/send-transcript-sms', {
@@ -241,6 +268,24 @@
     }
 
     async function submitSupportRequest(method) {
+      if (method === 'email' && !userData.email) {
+        pendingSupportMethod = 'supportEmail';
+        contactPrompt.style.display = 'block';
+        contactInput.placeholder = 'Enter email';
+        return;
+      }
+      if (method === 'sms' && !userData.phone) {
+        pendingSupportMethod = 'supportSMS';
+        contactPrompt.style.display = 'block';
+        contactInput.placeholder = 'Enter phone';
+        return;
+      }
+      if (method === 'call' && !userData.phone) {
+        pendingSupportMethod = 'supportCall';
+        contactPrompt.style.display = 'block';
+        contactInput.placeholder = 'Enter phone';
+        return;
+      }
       try {
         const response = await fetch('/submit-support-request', {
           method: 'POST',
@@ -261,6 +306,30 @@
       }
     }
 
+    async function updateUserContact(contact, type) {
+      try {
+        userData[type] = contact;
+        userLabel.textContent = `${userData.name || 'Guest'} (${userData.email || userData.phone})`;
+        if (pendingSupportMethod === 'emailTranscript') {
+          await sendEmailTranscript();
+        } else if (pendingSupportMethod === 'smsTranscript') {
+          await sendSMSTranscript();
+        } else if (pendingSupportMethod === 'supportEmail') {
+          await submitSupportRequest('email');
+        } else if (pendingSupportMethod === 'supportSMS') {
+          await submitSupportRequest('sms');
+        } else if (pendingSupportMethod === 'supportCall') {
+          await submitSupportRequest('call');
+        }
+        pendingSupportMethod = '';
+        contactPrompt.style.display = 'none';
+        contactInput.value = '';
+      } catch (error) {
+        console.error('Update contact error:', error);
+        addMessage('Assistant', 'Failed to update contact information.');
+      }
+    }
+
     toggleButton.addEventListener('click', () => {
       widget.style.display = widget.style.display === 'none' ? 'flex' : 'none';
       toggleButton.style.display = widget.style.display === 'none' ? 'block' : 'none';
@@ -276,7 +345,7 @@
       toggleButton.style.display = 'block';
       conversationHistory = [];
       userData = null;
-      chat.innerHTML = '';
+      chat.innerHTML = '<div id="thinking" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #6b7280;"><span>Thinking</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div><div id="supportPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;"><p>Sorry, I couldn\'t answer that. Would you like a Support Specialist to follow up?</p><button id="supportEmail" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Email</button><button id="supportSMS" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">SMS</button><button id="supportCall" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Phone Call</button></div><div id="contactPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;"><p>Please provide your contact information.</p><input id="contactInput" type="text" style="width: 80%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; margin-bottom: 8px;" placeholder="Enter email or phone"><button id="submitContact" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px;">Submit</button></div>';
       initialInputs.style.display = 'block';
       questionInput.style.display = 'none';
       userInfo.style.display = 'none';
@@ -298,18 +367,10 @@
     });
 
     emailTranscript.addEventListener('click', () => {
-      if (!userData.email) {
-        addMessage('Assistant', 'Please provide an email to send the transcript.');
-        return;
-      }
       sendEmailTranscript();
     });
 
     smsTranscript.addEventListener('click', () => {
-      if (!userData.phone) {
-        addMessage('Assistant', 'Please provide a phone number to send the transcript.');
-        return;
-      }
       sendSMSTranscript();
     });
 
@@ -385,27 +446,34 @@
     });
 
     supportEmail.addEventListener('click', () => {
-      if (!userData.email) {
-        addMessage('Assistant', 'Please provide an email for support.');
-        return;
-      }
       submitSupportRequest('email');
     });
 
     supportSMS.addEventListener('click', () => {
-      if (!userData.phone) {
-        addMessage('Assistant', 'Please provide a phone number for support.');
-        return;
-      }
       submitSupportRequest('sms');
     });
 
     supportCall.addEventListener('click', () => {
-      if (!userData.phone) {
-        addMessage('Assistant', 'Please provide a phone number for support.');
+      submitSupportRequest('call');
+    });
+
+    submitContact.addEventListener('click', () => {
+      const contact = contactInput.value.trim();
+      if (!contact) {
+        addMessage('Assistant', 'Please enter a valid contact.');
         return;
       }
-      submitSupportRequest('call');
+      if (pendingSupportMethod.includes('email') && !contact.includes('@')) {
+        addMessage('Assistant', 'Please enter a valid email.');
+        return;
+      }
+      if (pendingSupportMethod.includes('sms') || pendingSupportMethod.includes('call')) {
+        if (!contact.match(/^\+?\d{10,15}$/)) {
+          addMessage('Assistant', 'Please enter a valid phone number.');
+          return;
+        }
+      }
+      updateUserContact(contact, pendingSupportMethod.includes('email') ? 'email' : 'phone');
     });
   } catch (error) {
     console.error('Widget initialization error:', error);

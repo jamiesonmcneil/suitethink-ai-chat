@@ -39,6 +39,11 @@ async function queryAI(input, conversationHistory = []) {
       parkingInfo: data.parkingInfo !== 'Contact manager for parking details' ? data.parkingInfo : fallbackData.parkingInfo
     };
 
+    if (inputLower.includes('how many units')) {
+      const available = contextData.units.filter(unit => unit.availability).length;
+      return `${available} units:\n\n${contextData.units.filter(unit => unit.availability).map(unit => `${unit.size}: ${formatPrice(unit.price)}`).join('\n')}.`;
+    }
+
     if (process.env.XAI_API_KEY) {
       console.log('Using Grok 3 API for query:', input);
       const context = JSON.stringify({
@@ -56,7 +61,7 @@ async function queryAI(input, conversationHistory = []) {
       const messages = [
         {
           role: 'system',
-          content: `You are a storage facility assistant for Storio Self Storage at 610 W Fireweed Ln, Anchorage, AK. Use this context: ${context}. Respond like a human in a concise, natural conversation, referencing the history ${JSON.stringify(conversationHistory)} to avoid repetition or intros like 'Thanks for' or 'I'm glad'. Keep answers short, direct, and voice-friendly (max 2-3 sentences). Use newlines for readability. Clarify ambiguous queries using prior context.`
+          content: `You are a storage facility assistant for Storio Self Storage at 610 W Fireweed Ln, Anchorage, AK. Use this context: ${context}. Respond like a human in a concise, natural conversation, referencing the history ${JSON.stringify(conversationHistory)} to avoid repetition or intros like 'Thanks for' or 'I'm glad'. Keep answers short, direct, and voice-friendly (max 2-3 sentences). Use newlines for readability. Clarify ambiguous queries using prior context. If unable to answer, return 'cannot answer'.`
         },
         ...conversationHistory,
         { role: 'user', content: input }
@@ -86,9 +91,6 @@ async function queryAI(input, conversationHistory = []) {
       return await getStockText('manager');
     } else if (inputLower.includes('parking')) {
       return `${contextData.parkingInfo}\n\nCall 907-341-4198.`;
-    } else if (inputLower.includes('how many units')) {
-      const available = contextData.units.filter(unit => unit.availability).length;
-      return `${available} units:\n\n${contextData.units.filter(unit => unit.availability).map(unit => `${unit.size}: ${formatPrice(unit.price)}`).join('\n')}.`;
     } else if (inputLower.includes('cheapest')) {
       const available = contextData.units.filter(unit => unit.availability);
       const cheapest = available.reduce((min, unit) => !min || parseFloat(unit.price.replace('$', '').replace(/[^0-9.]/g, '')) < parseFloat(min.price.replace('$', '').replace(/[^0-9.]/g, '')) ? unit : min, null);

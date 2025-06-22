@@ -18,6 +18,7 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 const transporter = nodemailer.createTransport({
   host: 'mail.smtp2go.com',
   port: 587,
+  secure: false,
   auth: {
     user: process.env.SMTP2GO_USERNAME,
     pass: process.env.SMTP2GO_PASSWORD
@@ -32,7 +33,7 @@ app.post('/send-transcript-email', async (req, res) => {
   try {
     const { email, transcript } = req.body;
     await transporter.sendMail({
-      from: 'noreply@suitethink.com',
+      from: '"Storio Self Storage" <noreply@suitethink.com>',
       to: email,
       subject: 'Storio Self Storage Chat Transcript',
       text: transcript
@@ -41,7 +42,7 @@ app.post('/send-transcript-email', async (req, res) => {
     res.json({ message: 'Transcript sent to your email.' });
   } catch (error) {
     console.error('Email error:', error);
-    res.status(500).json({ message: 'Failed to send email.' });
+    res.status(500).json({ message: 'Failed to send email.', error: error.message });
   }
 });
 
@@ -59,7 +60,7 @@ app.post('/send-transcript-sms', async (req, res) => {
     res.json({ message: 'Transcript sent via SMS.' });
   } catch (error) {
     console.error('SMS error:', error);
-    res.status(500).json({ message: 'Failed to send SMS.' });
+    res.status(500).json({ message: 'Failed to send SMS.', error: error.message });
   }
 });
 
@@ -74,7 +75,7 @@ app.post('/save-transcript', async (req, res) => {
     res.json({ url });
   } catch (error) {
     console.error('Save transcript error:', error);
-    res.status(500).json({ message: 'Failed to save transcript.' });
+    res.status(500).json({ message: 'Failed to save transcript.', error: error.message });
   }
 });
 
@@ -88,7 +89,7 @@ app.post('/submit-support-request', async (req, res) => {
     console.log(`Support request submitted: ${query} via ${method}`);
     if (method === 'email' && email) {
       await transporter.sendMail({
-        from: 'noreply@suitethink.com',
+        from: '"Storio Self Storage" <noreply@suitethink.com>',
         to: email,
         subject: 'Storio Support Request',
         text: `Your question "${query}" has been received. A Support Specialist will follow up soon.`
@@ -103,7 +104,7 @@ app.post('/submit-support-request', async (req, res) => {
     res.json({ message: `Support request sent via ${method}.` });
   } catch (error) {
     console.error('Support request error:', error);
-    res.status(500).json({ message: 'Failed to submit support request.' });
+    res.status(500).json({ message: 'Failed to submit support request.', error: error.message });
   }
 });
 
