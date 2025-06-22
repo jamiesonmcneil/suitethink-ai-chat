@@ -1,0 +1,25 @@
+{
+  "name": "voice_ai_properties",
+  "version": "1.0.0",
+  "description": "",
+  "main": "voice-ai-agent.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "dotenv": "^16.5.0",
+    "elevenlabs": "^1.59.0",
+    "express": "^5.1.0",
+    "pg": "^8.16.1",
+    "puppeteer": "^24.10.2",
+    "twilio": "^5.7.1"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.10"
+  }
+}

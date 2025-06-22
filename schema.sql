@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS comms.transcripts (
+  id SERIAL PRIMARY KEY,
+  transcript TEXT NOT NULL,
+  create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS comms.support_requests (
+  id SERIAL PRIMARY KEY,
+  query TEXT NOT NULL,
+  method VARCHAR(50) NOT NULL,
+  email VARCHAR(255),
+  phone VARCHAR(20),
+  create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
