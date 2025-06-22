@@ -41,7 +41,7 @@ app.post('/send-transcript-email', async (req, res) => {
     console.log(`Email sent to ${email}`);
     res.json({ message: 'Transcript sent to your email.' });
   } catch (error) {
-    console.error('Email error:', error);
+    console.error('Email transcript error:', error);
     res.status(500).json({ message: 'Failed to send email.', error: error.message });
   }
 });
@@ -49,27 +49,30 @@ app.post('/send-transcript-email', async (req, res) => {
 app.post('/send-transcript-sms', async (req, res) => {
   try {
     const { phone, transcript } = req.body;
+    if (!phone || typeof phone !== 'string') {
+      throw new Error('Invalid phone number');
+    }
     const maxLength = 1600;
     const shortTranscript = transcript.length > maxLength ? transcript.substring(0, maxLength - 3) + '...' : transcript;
     await twilioClient.messages.create({
       body: shortTranscript,
       from: process.env.TWILIO_PHONE_NUMBER,
-      to: `+${phone.replace(/^\+/, '')}`
+      to: `+${phone.replace(/^\+/, '').replace(/\D/g, '')}`
     });
     console.log(`SMS sent to ${phone}`);
     res.json({ message: 'Transcript sent via SMS.' });
   } catch (error) {
-    console.error('SMS error:', error);
+    console.error('SMS transcript error:', error);
     res.status(500).json({ message: 'Failed to send SMS.', error: error.message });
   }
 });
 
 app.post('/save-transcript', async (req, res) => {
   try {
-    const { transcript } = req.body;
+    const { transcript, is_require_followup, followup_method } = req.body;
     const result = await client.query(
-      'INSERT INTO comms.transcripts (transcript, create_date) VALUES ($1, CURRENT_TIMESTAMP) RETURNING id',
-      [transcript]
+      'INSERT INTO comms.transcripts (transcript, is_require_followup, followup_method, followup_request_date, create_date) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id',
+      [transcript, is_require_followup || false, followup_method || null, is_require_followup ? new Date() : null]
     );
     const url = `https://penguin-new-wildly.ngrok-free.app/transcript/${result.rows[0].id}`;
     res.json({ url });
@@ -81,10 +84,10 @@ app.post('/save-transcript', async (req, res) => {
 
 app.post('/submit-support-request', async (req, res) => {
   try {
-    const { query, method, email, phone, name } = req.body;
+    const { query, method, email, phone, name, transcript_id } = req.body;
     await client.query(
-      'INSERT INTO comms.contact_us (query, method, email, phone, name, create_date) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)',
-      [query, method, email, phone, name]
+      'UPDATE comms.transcripts SET is_require_followup = $1, followup_method = $2, followup_request_date = CURRENT_TIMESTAMP WHERE id = $3',
+      [true, method, transcript_id]
     );
     console.log(`Support request submitted: ${query} via ${method}`);
     if (method === 'email' && email) {
@@ -98,7 +101,7 @@ app.post('/submit-support-request', async (req, res) => {
       await twilioClient.messages.create({
         body: `Your question "${query}" has been received. A Support Specialist will follow up soon.`,
         from: process.env.TWILIO_PHONE_NUMBER,
-        to: `+${phone.replace(/^\+/, '')}`
+        to: `+${phone.replace(/^\+/, '').replace(/\D/g, '')}`
       });
     }
     res.json({ message: `Support request sent via ${method}.` });

@@ -1,9 +1,5 @@
-CREATE TABLE IF NOT EXISTS comms.contact_us (
-  id SERIAL PRIMARY KEY,
-  query TEXT NOT NULL,
-  method VARCHAR(50) NOT NULL,
-  email VARCHAR(255),
-  phone VARCHAR(20),
-  name VARCHAR(255),
-  create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+ALTER TABLE comms.transcripts
+ADD COLUMN IF NOT EXISTS is_require_followup BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS followup_method VARCHAR(50),
+ADD COLUMN IF NOT EXISTS followup_request_date TIMESTAMP,
+ADD COLUMN IF NOT EXISTS followup_complete_date TIMESTAMP;

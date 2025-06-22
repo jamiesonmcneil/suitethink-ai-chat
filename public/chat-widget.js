@@ -50,10 +50,11 @@
         <span>Thinking</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
       </div>
       <div id="supportPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;">
-        <p>Sorry, I couldn't answer that. Would you like a Support Specialist to follow up?</p>
+        <p>Would you like for me to send this conversation to our support team for them to contact you to follow up?</p>
         <button id="supportEmail" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Email</button>
         <button id="supportSMS" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">SMS</button>
-        <button id="supportCall" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Phone Call</button>
+        <button id="supportCall" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Phone</button>
+        <button id="supportNo" style="padding: 6px 12px; background: #ef4444; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">No</button>
       </div>
       <div id="contactPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;">
         <p>Please provide your contact information.</p>
@@ -147,6 +148,7 @@
     const supportEmail = widget.querySelector('#supportEmail');
     const supportSMS = widget.querySelector('#supportSMS');
     const supportCall = widget.querySelector('#supportCall');
+    const supportNo = widget.querySelector('#supportNo');
     const contactPrompt = widget.querySelector('#contactPrompt');
     const contactInput = widget.querySelector('#contactInput');
     const submitContact = widget.querySelector('#submitContact');
@@ -154,8 +156,10 @@
     let conversationHistory = [];
     let lastQuery = '';
     let pendingSupportMethod = '';
+    let transcriptId = null;
+    let followupMethod = null;
 
-    if (!form || !nameInput || !emailInput || !phoneInput || !queryInput || !chat || !initialInputs || !questionInput || !userInfo || !userLabel || !minimizeChat || !closeChat || !shareTranscript || !downloadTranscript || !emailTranscript || !smsTranscript || !copyLink || !thinking || !supportPrompt || !supportEmail || !supportSMS || !supportCall || !contactPrompt || !contactInput || !submitContact) {
+    if (!form || !nameInput || !emailInput || !phoneInput || !queryInput || !chat || !initialInputs || !questionInput || !userInfo || !userLabel || !minimizeChat || !closeChat || !shareTranscript || !downloadTranscript || !emailTranscript || !smsTranscript || !copyLink || !thinking || !supportPrompt || !supportEmail || !supportSMS || !supportCall || !supportNo || !contactPrompt || !contactInput || !submitContact) {
       throw new Error('Missing DOM elements');
     }
 
@@ -344,6 +348,7 @@
         contactInput.placeholder = 'Enter phone';
         return;
       }
+      followupMethod = method;
       try {
         const response = await fetch('/submit-support-request', {
           method: 'POST',
@@ -353,7 +358,8 @@
             method,
             email: userData.email,
             phone: userData.phone,
-            name: userData.name
+            name: userData.name,
+            transcript_id: transcriptId
           }),
         });
         const data = await response.json();
@@ -411,7 +417,9 @@
       toggleButton.style.display = 'block';
       conversationHistory = [];
       userData = null;
-      chat.innerHTML = '<div id="thinking" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #6b7280;"><span>Thinking</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div><div id="supportPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;"><p>Sorry, I couldn\'t answer that. Would you like a Support Specialist to follow up?</p><button id="supportEmail" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Email</button><button id="supportSMS" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">SMS</button><button id="supportCall" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Phone Call</button></div><div id="contactPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;"><p>Please provide your contact information.</p><input id="contactInput" type="text" style="width: 80%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; margin-bottom: 8px;" placeholder="Enter email or phone"><button id="submitContact" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px;">Submit</button></div>';
+      transcriptId = null;
+      followupMethod = null;
+      chat.innerHTML = '<div id="thinking" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #6b7280;"><span>Thinking</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div><div id="supportPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;"><p>Would you like for me to send this conversation to our support team for them to contact you to follow up?</p><button id="supportEmail" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Email</button><button id="supportSMS" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">SMS</button><button id="supportCall" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">Phone</button><button id="supportNo" style="padding: 6px 12px; background: #ef4444; color: #fff; border: none; border-radius: 6px; font-size: 12px; margin: 4px;">No</button></div><div id="contactPrompt" style="display: none; text-align: center; padding: 8px; font-size: 12px; color: #374151;"><p>Please provide your contact information.</p><input id="contactInput" type="text" style="width: 80%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; margin-bottom: 8px;" placeholder="Enter email or phone"><button id="submitContact" style="padding: 6px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px;">Submit</button></div>';
       initialInputs.style.display = 'block';
       questionInput.style.display = 'none';
       userInfo.style.display = 'none';
@@ -448,6 +456,11 @@
 
     supportCall.addEventListener('click', () => {
       submitSupportRequest('call');
+    });
+
+    supportNo.addEventListener('click', () => {
+      supportPrompt.style.display = 'none';
+      addMessage('Assistant', 'Okay, let me know how else I can assist you.');
     });
 
     submitContact.addEventListener('click', () => {
@@ -521,17 +534,35 @@
         thinking.style.display = 'none';
         const data = await response.json();
         if (data.error || data.response.includes('Error processing') || data.response === 'cannot answer') {
-          addMessage('Assistant', "Sorry, I couldn't answer that. You can call 907-341-4198 or would you like a Support Specialist to follow up?");
-          supportPrompt.style.display = 'block';
+          if (followupMethod) {
+            addMessage('Assistant', `Sorry, I couldn't answer that. Our team will follow up with you via ${followupMethod}.`);
+          } else {
+            addMessage('Assistant', "Sorry, I couldn't answer that. You can call 907-341-4198 or would you like for me to send this conversation to our support team for them to contact you to follow up?");
+            supportPrompt.style.display = 'block';
+          }
         } else {
           addMessage('Assistant', data.response);
           conversationHistory.push({ role: 'assistant', content: data.response });
         }
+        if (!transcriptId) {
+          const transcript = generateTranscript();
+          const saveResponse = await fetch('/save-transcript', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript, is_require_followup: followupMethod !== null, followup_method: followupMethod }),
+          });
+          const saveData = await saveResponse.json();
+          transcriptId = saveData.url.split('/').pop();
+        }
       } catch (error) {
         console.error('Fetch error:', error);
         thinking.style.display = 'none';
-        addMessage('Assistant', "Sorry, I couldn't answer that. You can call 907-341-4198 or would you like a Support Specialist to follow up?");
-        supportPrompt.style.display = 'block';
+        if (followupMethod) {
+          addMessage('Assistant', `Sorry, I couldn't answer that. Our team will follow up with you via ${followupMethod}.`);
+        } else {
+          addMessage('Assistant', "Sorry, I couldn't answer that. You can call 907-341-4198 or would you like for me to send this conversation to our support team for them to contact you to follow up?");
+          supportPrompt.style.display = 'block';
+        }
       }
     });
   } catch (error) {
