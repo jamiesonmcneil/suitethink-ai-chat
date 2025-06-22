@@ -111,6 +111,7 @@
         border-radius: 12px 12px 0 12px !important;
         margin-left: 20%;
         padding: 10px !important;
+        margin-bottom: 2px !important;
       }
       .chat-bubble-assistant {
         background: #e5e7eb !important;
@@ -118,6 +119,7 @@
         border-radius: 12px 12px 12px 0 !important;
         margin-right: 20%;
         padding: 10px !important;
+        margin-bottom: 2px !important;
       }
     </style>
   `;
@@ -180,39 +182,80 @@
     }
 
     function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      let y = 10;
-      const user = userData ? `${userData.name || 'Guest'} (${userData.email || userData.phone})` : 'Anonymous';
-      doc.setFontSize(12);
-      doc.text(`Storio Self Storage Chat Transcript`, 10, y);
-      y += 10;
-      doc.setFontSize(10);
-      doc.text(`User: ${user}`, 10, y);
-      y += 10;
-      conversationHistory.forEach(msg => {
-        const role = msg.role === 'user' ? 'You' : 'Assistant';
-        const lines = msg.content.split('\n');
-        if (y > 280) {
-          doc.addPage();
-          y = 10;
-        }
-        doc.text(`${role}:`, 10, y);
-        y += 5;
-        lines.forEach(line => {
-          const split = doc.splitTextToSize(line, 180);
-          split.forEach(splitLine => {
+      if (!window.jspdf) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        script.onload = () => {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+          let y = 10;
+          const user = userData ? `${userData.name || 'Guest'} (${userData.email || userData.phone})` : 'Anonymous';
+          doc.setFontSize(12);
+          doc.text(`Storio Self Storage Chat Transcript`, 10, y);
+          y += 10;
+          doc.setFontSize(10);
+          doc.text(`User: ${user}`, 10, y);
+          y += 10;
+          conversationHistory.forEach(msg => {
+            const role = msg.role === 'user' ? 'You' : 'Assistant';
+            const lines = msg.content.split('\n');
             if (y > 280) {
               doc.addPage();
               y = 10;
             }
-            doc.text(splitLine, 15, y);
+            doc.text(`${role}:`, 10, y);
+            y += 5;
+            lines.forEach(line => {
+              const split = doc.splitTextToSize(line, 180);
+              split.forEach(splitLine => {
+                if (y > 280) {
+                  doc.addPage();
+                  y = 10;
+                }
+                doc.text(splitLine, 15, y);
+                y += 5;
+              });
+            });
             y += 5;
           });
+          doc.save(`storio-chat-transcript-${Date.now()}.pdf`);
+        };
+        document.head.appendChild(script);
+      } else {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 10;
+        const user = userData ? `${userData.name || 'Guest'} (${userData.email || userData.phone})` : 'Anonymous';
+        doc.setFontSize(12);
+        doc.text(`Storio Self Storage Chat Transcript`, 10, y);
+        y += 10;
+        doc.setFontSize(10);
+        doc.text(`User: ${user}`, 10, y);
+        y += 10;
+        conversationHistory.forEach(msg => {
+          const role = msg.role === 'user' ? 'You' : 'Assistant';
+          const lines = msg.content.split('\n');
+          if (y > 280) {
+            doc.addPage();
+            y = 10;
+          }
+          doc.text(`${role}:`, 10, y);
+          y += 5;
+          lines.forEach(line => {
+            const split = doc.splitTextToSize(line, 180);
+            split.forEach(splitLine => {
+              if (y > 280) {
+                doc.addPage();
+                y = 10;
+              }
+              doc.text(splitLine, 15, y);
+              y += 5;
+            });
+          });
+          y += 5;
         });
-        y += 5;
-      });
-      doc.save(`storio-chat-transcript-${Date.now()}.pdf`);
+        doc.save(`storio-chat-transcript-${Date.now()}.pdf`);
+      }
     }
 
     async function sendEmailTranscript() {
@@ -271,7 +314,7 @@
         });
         const data = await response.json();
         if (data.url) {
-          navigator.clipboard.write(data.url);
+          await navigator.clipboard.writeText(data.url);
           addMessage('Assistant', 'Transcript link copied to clipboard.');
         } else {
           addMessage('Assistant', 'Failed to generate link.');
@@ -309,7 +352,8 @@
             query: lastQuery,
             method,
             email: userData.email,
-            phone: userData.phone
+            phone: userData.phone,
+            name: userData.name
           }),
         });
         const data = await response.json();
@@ -339,6 +383,11 @@
         pendingSupportMethod = '';
         contactPrompt.style.display = 'none';
         contactInput.value = '';
+        await fetch('/update-user-contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userData.email, phone: userData.phone, name: userData.name })
+        });
       } catch (error) {
         console.error('Update contact error:', error);
         addMessage('Assistant', 'Failed to update contact information.');
@@ -348,11 +397,13 @@
     toggleButton.addEventListener('click', () => {
       widget.style.display = widget.style.display === 'none' ? 'flex' : 'none';
       toggleButton.style.display = widget.style.display === 'none' ? 'block' : 'none';
+      shareOptions.style.display = 'none';
     });
 
     minimizeChat.addEventListener('click', () => {
       widget.style.display = 'none';
       toggleButton.style.display = 'block';
+      shareOptions.style.display = 'none';
     });
 
     closeChat.addEventListener('click', () => {
@@ -364,6 +415,7 @@
       initialInputs.style.display = 'block';
       questionInput.style.display = 'none';
       userInfo.style.display = 'none';
+      shareOptions.style.display = 'none';
     });
 
     shareTranscript.addEventListener('click', () => {
@@ -371,14 +423,7 @@
     });
 
     downloadTranscript.addEventListener('click', () => {
-      if (!window.jspdf) {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-        script.onload = downloadPDF;
-        document.head.appendChild(script);
-      } else {
-        downloadPDF();
-      }
+      downloadPDF();
     });
 
     emailTranscript.addEventListener('click', () => {
@@ -476,7 +521,7 @@
         thinking.style.display = 'none';
         const data = await response.json();
         if (data.error || data.response.includes('Error processing') || data.response === 'cannot answer') {
-          addMessage('Assistant', "Sorry, I couldn't answer that.");
+          addMessage('Assistant', "Sorry, I couldn't answer that. You can call 907-341-4198 or would you like a Support Specialist to follow up?");
           supportPrompt.style.display = 'block';
         } else {
           addMessage('Assistant', data.response);
@@ -485,7 +530,7 @@
       } catch (error) {
         console.error('Fetch error:', error);
         thinking.style.display = 'none';
-        addMessage('Assistant', "Sorry, I couldn't answer that.");
+        addMessage('Assistant', "Sorry, I couldn't answer that. You can call 907-341-4198 or would you like a Support Specialist to follow up?");
         supportPrompt.style.display = 'block';
       }
     });

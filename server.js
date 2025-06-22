@@ -54,7 +54,7 @@ app.post('/send-transcript-sms', async (req, res) => {
     await twilioClient.messages.create({
       body: shortTranscript,
       from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone
+      to: `+${phone.replace(/^\+/, '')}`
     });
     console.log(`SMS sent to ${phone}`);
     res.json({ message: 'Transcript sent via SMS.' });
@@ -81,10 +81,10 @@ app.post('/save-transcript', async (req, res) => {
 
 app.post('/submit-support-request', async (req, res) => {
   try {
-    const { query, method, email, phone } = req.body;
+    const { query, method, email, phone, name } = req.body;
     await client.query(
-      'INSERT INTO comms.support_requests (query, method, email, phone, create_date) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)',
-      [query, method, email, phone]
+      'INSERT INTO comms.contact_us (query, method, email, phone, name, create_date) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)',
+      [query, method, email, phone, name]
     );
     console.log(`Support request submitted: ${query} via ${method}`);
     if (method === 'email' && email) {
@@ -98,13 +98,47 @@ app.post('/submit-support-request', async (req, res) => {
       await twilioClient.messages.create({
         body: `Your question "${query}" has been received. A Support Specialist will follow up soon.`,
         from: process.env.TWILIO_PHONE_NUMBER,
-        to: phone
+        to: `+${phone.replace(/^\+/, '')}`
       });
     }
     res.json({ message: `Support request sent via ${method}.` });
   } catch (error) {
     console.error('Support request error:', error);
     res.status(500).json({ message: 'Failed to submit support request.', error: error.message });
+  }
+});
+
+app.post('/update-user-contact', async (req, res) => {
+  try {
+    const { email, phone, name } = req.body;
+    const existing = await client.query(
+      'SELECT id FROM comms.user WHERE name = $1 AND (email = $2 OR phone = $3)',
+      [name || 'Guest', email || null, phone || null]
+    );
+    let userId;
+    if (existing.rows.length > 0) {
+      userId = existing.rows[0].id;
+      await client.query(
+        'UPDATE comms.user SET email = $1, phone = $2 WHERE id = $3',
+        [email || existing.rows[0].email, phone || existing.rows[0].phone, userId]
+      );
+    } else {
+      const result = await client.query(
+        'INSERT INTO comms.user (name, email, phone, create_date) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id',
+        [name || 'Guest', email || null, phone || null]
+      );
+      userId = result.rows[0].id;
+    }
+    if (email) {
+      await client.query(
+        'INSERT INTO comms.user_email (fk_user_id, email, create_date) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING',
+        [userId, email]
+      );
+    }
+    res.json({ message: 'User contact updated.' });
+  } catch (error) {
+    console.error('Update user contact error:', error);
+    res.status(500).json({ message: 'Failed to update user contact.', error: error.message });
   }
 });
 
