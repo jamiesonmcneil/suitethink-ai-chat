@@ -34,6 +34,7 @@
   document.body.appendChild(toggleButton);
 
   widget.innerHTML = `
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <div style="background: linear-gradient(to right, #e0e7ff, #c3dafe); padding: 12px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
       <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #4f46e5;">Storio Self Storage</h2>
       <div>
@@ -79,7 +80,7 @@
         <div style="display: flex; gap: 8px;">
           <input id="queryInput" type="text" style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px 0 0 6px; font-size: 14px; background: #f3f4f6;" placeholder="Ask about storage or parking...">
           <button type="submit" style="padding: 8px 12px; background: #4f46e5; color: #fff; border: none; border-radius: 0 6px 6px 0; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;">Send</button>
-          <button id="shareTranscript" type="button" style="padding: 8px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;">Share</button>
+          <button id="shareTranscript" type="button" style="padding: 8px 12px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;"><i class="fas fa-share"></i></button>
         </div>
         <div id="shareOptions" style="display: none; position: absolute; bottom: 60px; right: 12px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 8px; display: flex; flex-direction: column; gap: 4px; animation: popup 0.3s ease-out;">
           <button id="downloadTranscript" style="padding: 8px; background: #10b981; color: #fff; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">Download PDF</button>
@@ -103,6 +104,20 @@
       @keyframes popup {
         from { transform: scale(0.8); opacity: 0; }
         to { transform: scale(1); opacity: 1; }
+      }
+      .chat-bubble-user {
+        background: #c7d2fe !important;
+        color: #1e3a8a !important;
+        border-radius: 12px 12px 0 12px !important;
+        margin-left: 20%;
+        padding: 10px !important;
+      }
+      .chat-bubble-assistant {
+        background: #e5e7eb !important;
+        color: #1f2937 !important;
+        border-radius: 12px 12px 12px 0 !important;
+        margin-right: 20%;
+        padding: 10px !important;
       }
     </style>
   `;
@@ -149,7 +164,7 @@
       const div = document.createElement('div');
       div.className = sender === 'User' ? 'mb-3 flex justify-end' : 'mb-3 flex justify-start';
       const formattedText = text.split('\n').map(line => `<p class="mb-1 text-sm">${line}</p>`).join('');
-      div.innerHTML = `<div class="max-w-[80%] p-3 rounded-lg text-sm ${sender === 'User' ? 'bg-indigo-200 text-indigo-900' : 'bg-gray-300 text-gray-900'} shadow-sm">${formattedText}</div>`;
+      div.innerHTML = `<div class="max-w-[80%] p-3 rounded-lg text-sm chat-bubble-${sender.toLowerCase()} shadow-sm">${formattedText}</div>`;
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
     }
@@ -378,6 +393,37 @@
       copyTranscriptLink();
     });
 
+    supportEmail.addEventListener('click', () => {
+      submitSupportRequest('email');
+    });
+
+    supportSMS.addEventListener('click', () => {
+      submitSupportRequest('sms');
+    });
+
+    supportCall.addEventListener('click', () => {
+      submitSupportRequest('call');
+    });
+
+    submitContact.addEventListener('click', () => {
+      const contact = contactInput.value.trim();
+      if (!contact) {
+        addMessage('Assistant', 'Please enter a valid contact.');
+        return;
+      }
+      if (pendingSupportMethod.includes('email') && !contact.includes('@')) {
+        addMessage('Assistant', 'Please enter a valid email.');
+        return;
+      }
+      if (pendingSupportMethod.includes('sms') || pendingSupportMethod.includes('call')) {
+        if (!contact.match(/^\+?\d{10,15}$/)) {
+          addMessage('Assistant', 'Please enter a valid phone number.');
+          return;
+        }
+      }
+      updateUserContact(contact, pendingSupportMethod.includes('email') ? 'email' : 'phone');
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       console.log('Form submitted');
@@ -397,7 +443,6 @@
           console.log('Toggling UI: hiding initial inputs, showing chat');
           initialInputs.style.display = 'none';
           questionInput.style.display = 'block';
-          queryInput.setAttribute('required', 'required');
           userInfo.style.display = 'block';
           userLabel.textContent = `${name || 'Guest'} (${email || phone})`;
           const welcomeMessage = 'Hi! How can I help you with storage or parking at Storio Self Storage?';
@@ -430,7 +475,7 @@
         });
         thinking.style.display = 'none';
         const data = await response.json();
-        if (data.error || data.response.includes('Error processing') || data.response.includes('cannot answer')) {
+        if (data.error || data.response.includes('Error processing') || data.response === 'cannot answer') {
           addMessage('Assistant', "Sorry, I couldn't answer that.");
           supportPrompt.style.display = 'block';
         } else {
@@ -443,37 +488,6 @@
         addMessage('Assistant', "Sorry, I couldn't answer that.");
         supportPrompt.style.display = 'block';
       }
-    });
-
-    supportEmail.addEventListener('click', () => {
-      submitSupportRequest('email');
-    });
-
-    supportSMS.addEventListener('click', () => {
-      submitSupportRequest('sms');
-    });
-
-    supportCall.addEventListener('click', () => {
-      submitSupportRequest('call');
-    });
-
-    submitContact.addEventListener('click', () => {
-      const contact = contactInput.value.trim();
-      if (!contact) {
-        addMessage('Assistant', 'Please enter a valid contact.');
-        return;
-      }
-      if (pendingSupportMethod.includes('email') && !contact.includes('@')) {
-        addMessage('Assistant', 'Please enter a valid email.');
-        return;
-      }
-      if (pendingSupportMethod.includes('sms') || pendingSupportMethod.includes('call')) {
-        if (!contact.match(/^\+?\d{10,15}$/)) {
-          addMessage('Assistant', 'Please enter a valid phone number.');
-          return;
-        }
-      }
-      updateUserContact(contact, pendingSupportMethod.includes('email') ? 'email' : 'phone');
     });
   } catch (error) {
     console.error('Widget initialization error:', error);
