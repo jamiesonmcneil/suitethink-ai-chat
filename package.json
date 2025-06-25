@@ -4,7 +4,9 @@
   "description": "",
   "main": "voice-ai-agent.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "build": "esbuild client/main.js --bundle --outfile=public/chat-widget.js --minify"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +17,7 @@
     "axios": "^1.10.0",
     "dotenv": "^16.5.0",
     "elevenlabs": "^1.59.0",
+    "esbuild": "^0.25.5",
     "express": "^5.1.0",
     "nodemailer": "^7.0.3",
     "pg": "^8.16.1",
