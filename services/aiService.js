@@ -15,9 +15,9 @@ async function queryAI(input, conversationHistory = []) {
 
     const fallbackData = {
       units: [
-        { size: "3.5' x 6.5' (25sf)", price: "$122", availability: true },
-        { size: "5' x 7.6' (38sf)", price: "$154", availability: true },
-        { size: "6.5' x 15' (100sf)", price: "$300", availability: true }
+        { size: "3.5' x 6.5' (25sf)", price: "$122", availability: true, height: "8'" },
+        { size: "5' x 7.6' (38sf)", price: "$154", availability: true, height: "8'" },
+        { size: "6.5' x 15' (100sf)", price: "$300", availability: true, height: "10'" }
       ],
       locations: ["610 W Fireweed Ln, Anchorage, AK 99503"],
       storageTypes: ["Indoor Heated Storage", "Vehicle Storage", "Climate-Controlled Storage"],
@@ -42,6 +42,10 @@ async function queryAI(input, conversationHistory = []) {
     if (inputLower.includes('how many units')) {
       const available = contextData.units.filter(unit => unit.availability).length;
       return `${available} units:\n\n${contextData.units.filter(unit => unit.availability).map(unit => `${unit.size}: ${formatPrice(unit.price)}`).join('\n')}.`;
+    }
+
+    if (inputLower.includes('height') && inputLower.includes('unit')) {
+      return contextData.units.map(unit => `${unit.size}: ${unit.height} height.`).join('\n\n');
     }
 
     if (process.env.XAI_API_KEY) {
@@ -112,11 +116,11 @@ async function queryAI(input, conversationHistory = []) {
     } else if (inputLower.includes('tip')) {
       return `${contextData.storageTips.join('\n') || 'Call 907-341-4198 for tips.'}`;
     } else {
-      return await getStockText('welcome');
+      return 'cannot answer';
     }
   } catch (error) {
     console.error('Error in queryAI:', error.stack);
-    return 'Error processing request';
+    return 'cannot answer';
   }
 }
 

@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const { getHome, handleWebQuery } = require('./controllers/webController');
 const { Client } = require('pg');
-const twilio = require('twilio');
 const nodemailer = require('nodemailer');
 require('dotenv').config({ path: './.env' });
 
@@ -12,8 +11,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const client = new Client({ connectionString: process.env.DATABASE_URL });
 client.connect();
-
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const transporter = nodemailer.createTransport({
   host: 'mail.smtp2go.com',
@@ -46,47 +43,38 @@ app.post('/send-transcript-email', async (req, res) => {
   }
 });
 
-app.post('/send-transcript-sms', async (req, res) => {
-  try {
-    const { phone, transcript } = req.body;
-    if (!phone || typeof phone !== 'string') {
-      throw new Error('Invalid phone number');
-    }
-    const maxLength = 1600;
-    const shortTranscript = transcript.length > maxLength ? transcript.substring(0, maxLength - 3) + '...' : transcript;
-    await twilioClient.messages.create({
-      body: shortTranscript,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: `+${phone.replace(/^\+/, '').replace(/\D/g, '')}`
-    });
-    console.log(`SMS sent to ${phone}`);
-    res.json({ message: 'Transcript sent via SMS.' });
-  } catch (error) {
-    console.error('SMS transcript error:', error);
-    res.status(500).json({ message: 'Failed to send SMS.', error: error.message });
-  }
-});
-
 app.post('/save-transcript', async (req, res) => {
   try {
     const { transcript, is_require_followup, followup_method } = req.body;
+    if (!transcript) {
+      throw new Error('Transcript is required');
+    }
+    if (followup_method && !['email'].includes(followup_method)) {
+      throw new Error('Invalid followup_method');
+    }
     const result = await client.query(
-      'INSERT INTO comms.transcripts (transcript, is_require_followup, followup_method, followup_request_date, create_date) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id',
+      'INSERT INTO comms.transcript (transcript, is_require_followup, followup_method, followup_request_date, create_date) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id',
       [transcript, is_require_followup || false, followup_method || null, is_require_followup ? new Date() : null]
     );
-    const url = `https://penguin-new-wildly.ngrok-free.app/transcript/${result.rows[0].id}`;
+    const url = `http://localhost:3000/transcript/${result.rows[0].id}`;
     res.json({ url });
   } catch (error) {
-    console.error('Save transcript error:', error);
+    console.error('Save transcript error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
     res.status(500).json({ message: 'Failed to save transcript.', error: error.message });
   }
 });
 
 app.post('/submit-support-request', async (req, res) => {
   try {
-    const { query, method, email, phone, name, transcript_id } = req.body;
+    const { query, method, email, firstName, lastName, transcript_id } = req.body;
     await client.query(
-      'UPDATE comms.transcripts SET is_require_followup = $1, followup_method = $2, followup_request_date = CURRENT_TIMESTAMP WHERE id = $3',
+      'UPDATE comms.transcript SET is_require_followup = $1, followup_method = $2, followup_request_date = CURRENT_TIMESTAMP WHERE id = $3',
       [true, method, transcript_id]
     );
     console.log(`Support request submitted: ${query} via ${method}`);
@@ -96,12 +84,6 @@ app.post('/submit-support-request', async (req, res) => {
         to: email,
         subject: 'Storio Support Request',
         text: `Your question "${query}" has been received. A Support Specialist will follow up soon.`
-      });
-    } else if (method === 'sms' && phone) {
-      await twilioClient.messages.create({
-        body: `Your question "${query}" has been received. A Support Specialist will follow up soon.`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: `+${phone.replace(/^\+/, '').replace(/\D/g, '')}`
       });
     }
     res.json({ message: `Support request sent via ${method}.` });
@@ -113,22 +95,22 @@ app.post('/submit-support-request', async (req, res) => {
 
 app.post('/update-user-contact', async (req, res) => {
   try {
-    const { email, phone, name } = req.body;
+    const { email, firstName, lastName } = req.body;
     const existing = await client.query(
-      'SELECT id FROM comms.user WHERE name = $1 AND (email = $2 OR phone = $3)',
-      [name || 'Guest', email || null, phone || null]
+      'SELECT id FROM comms.user WHERE email = $1',
+      [email || null]
     );
     let userId;
     if (existing.rows.length > 0) {
       userId = existing.rows[0].id;
       await client.query(
-        'UPDATE comms.user SET email = $1, phone = $2 WHERE id = $3',
-        [email || existing.rows[0].email, phone || existing.rows[0].phone, userId]
+        'UPDATE comms.user SET email = $1, first_name = $2, last_name = $3 WHERE id = $4',
+        [email || existing.rows[0].email, firstName || existing.rows[0].first_name, lastName || existing.rows[0].last_name, userId]
       );
     } else {
       const result = await client.query(
-        'INSERT INTO comms.user (name, email, phone, create_date) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id',
-        [name || 'Guest', email || null, phone || null]
+        'INSERT INTO comms.user (first_name, last_name, email, create_date) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id',
+        [firstName || null, lastName || null, email || null]
       );
       userId = result.rows[0].id;
     }
@@ -147,7 +129,7 @@ app.post('/update-user-contact', async (req, res) => {
 
 app.get('/transcript/:id', async (req, res) => {
   try {
-    const result = await client.query('SELECT transcript FROM comms.transcripts WHERE id = $1', [req.params.id]);
+    const result = await client.query('SELECT transcript FROM comms.transcript WHERE id = $1', [req.params.id]);
     if (result.rows[0]) {
       res.set('Content-Type', 'text/plain');
       res.send(result.rows[0].transcript);

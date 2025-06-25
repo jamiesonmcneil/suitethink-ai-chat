@@ -1,0 +1,18 @@
+DATABASE_URL: postgresql://stadmin:cr33lD3v@localhost:5432/suitethink
+DATABASE_URL: postgresql://stadmin:cr33lD3v@localhost:5432/suitethink
+Server running on port 3000
+Creating user: { email: 'billsmith@3566.ca', phone: undefined, name: undefined }
+Saving activity for user: 20
+Saving query: how many uunits do you have
+Using Grok 3 API for query: how many uunits do you have
+Saving AI response: Hi Bill, nice to hear from you!
+
+We currently have 3 available units at Storio Self Storage. If you're looking for specific sizes or prices, I can list those for you—just let me know!
+Creating user: { email: 'billsmith@3566.ca', phone: undefined, name: undefined }
+Saving activity for user: 20
+Saving query: what is the largets
+Using Grok 3 API for query: what is the largets
+Saving AI response: Hi Bill, I’m assuming you meant to ask about the largest unit available.
+
+The largest unit we have at Storio Self Storage is 6.5' x 15' (100sf), priced at $300. Let me know if you’d like more details or want to reserve it!
+Email sent to billsmith@3566.ca

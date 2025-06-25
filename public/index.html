@@ -3,50 +3,67 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suitethink AI Chat</title>
+  <title>Storio Self Storage</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
+      background: linear-gradient(to bottom, #f9fafb, #e0e7ff);
+      font-family: 'Inter', sans-serif;
     }
-    header {
-      background: #4f46e5;
-      width: 100%;
-      padding: 20px;
-      text-align: center;
-    }
-    header img {
-      height: 60px;
-    }
-    header h1 {
-      color: #fff;
-      margin: 10px 0;
-      font-size: 28px;
-    }
-    main {
+    .container {
       max-width: 800px;
-      padding: 20px;
-      text-align: center;
+      margin-left: auto;
+      margin-right: auto;
     }
-    main p {
-      font-size: 18px;
-      color: #374151;
+    .hero {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 2rem;
+      margin-top: 2rem;
+    }
+    .instructions {
+      background: #e0e7ff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .instructions ul {
+      list-style-type: disc;
+      margin-left: 1.5rem;
+    }
+    .instructions li {
+      margin-bottom: 0.5rem;
     }
   </style>
 </head>
 <body>
-  <header>
-    <img src="/logo.png" alt="Suitethink AI Logo">
-    <h1>Suitethink AI Chat</h1>
-  </header>
-  <main>
-    <p>Welcome to Suitethink AI Chat! Click the ? icon in the bottom-right corner to interact with our AI assistant for Storio Self Storage.</p>
-  </main>
+  <div class="container mx-auto px-4 py-8">
+    <div class="hero text-center">
+      <h1 class="text-4xl font-bold text-indigo-600 mb-4">Welcome to Storio Self Storage</h1>
+      <p class="text-lg text-gray-600 mb-6">
+        Your trusted solution for secure, flexible storage in Anchorage, AK. Explore our units, check pricing, or get answers to your questions using our AI-powered chat.
+      </p>
+    </div>
+    <div class="instructions">
+      <h2 class="text-2xl font-semibold text-indigo-600 mb-4">How to Use the Chat</h2>
+      <p class="text-gray-600 mb-4">
+        Our AI-powered chat feature is designed to provide instant answers about our storage services. Follow these steps to test and use it:
+      </p>
+      <ul class="text-gray-600">
+        <li>Click the <strong>animated "?" button</strong> in the bottom right corner to open the chat window.</li>
+        <li>The chat will start with a welcome message and prompt you to enter your first name, last name, and email address sequentially.</li>
+        <li>Once your details are provided, ask questions about storage units, pricing, or availability (e.g., "What is your biggest unit?" or "Are there discounts for long-term rentals?").</li>
+        <li>Use the <strong>share button</strong> (share icon) to download the conversation as a PDF or send it via email. You can also type "share conversation" or "send copy" to initiate sharing.</li>
+        <li>If the assistant can't answer, a support prompt will offer a follow-up option via email. Provide an email address if prompted.</li>
+        <li>To close the chat, click the "✕" button, then confirm by clicking "Yes" in the prompt to end the session.</li>
+        <li>Test edge cases like entering an invalid email, skipping contact steps, or requesting follow-up to ensure functionality.</li>
+      </ul>
+      <p class="text-gray-600 mt-4">
+        For immediate assistance, call us at <a href="tel:907-341-4198" class="text-indigo-600 hover:underline">907-341-4198</a>.
+      </p>
+    </div>
+  </div>
   <script src="/chat-widget.js"></script>
 </body>
 </html>
