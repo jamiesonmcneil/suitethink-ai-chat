@@ -1,71 +1,62 @@
 const axios = require('axios');
-const { scrapeStorageData, getStockText, formatPrice } = require('./storageService');
 const { Pool } = require('pg');
 require('dotenv').config({ path: './.env' });
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function queryAI(input, conversationHistory = []) {
   try {
-    const data = await scrapeStorageData();
     const inputLower = input.toLowerCase();
-    const rules = await pool.query(
-      'SELECT rule_key, rule_value FROM comms.ai_rules WHERE fk_property_id = $1 AND is_active = true AND is_deleted = false',
+    const dataResult = await pool.query(
+      'SELECT data FROM comms.scraped_data_frequent WHERE fk_property_id = $1 ORDER BY create_date DESC LIMIT 1',
       [1]
     );
-
-    const fallbackData = {
-      units: [
-        { size: "3.5' x 6.5' (25sf)", price: "$122", availability: true, height: "8'" },
-        { size: "5' x 7.6' (38sf)", price: "$154", availability: true, height: "8'" },
-        { size: "6.5' x 15' (100sf)", price: "$300", availability: true, height: "10'" }
-      ],
-      locations: ["610 W Fireweed Ln, Anchorage, AK 99503"],
-      storageTypes: ["Indoor Heated Storage", "Vehicle Storage", "Climate-Controlled Storage"],
-      storageTips: [
-        "Use sturdy boxes and label clearly.",
-        "Wrap fragile items in bubble wrap.",
-        "Avoid storing food or combustibles.",
-        "Place heavy items at the bottom.",
-        "Use our free moving truck."
-      ],
-      parkingInfo: "Indoor vehicle storage for RV, car, boat. Call 907-341-4198."
-    };
-
-    const contextData = {
-      units: data && data.units?.length > 0 ? data.units : fallbackData.units,
-      locations: data && data.locations?.length > 0 ? data.locations : fallbackData.locations,
-      storageTypes: data && data.storageTypes?.length > 0 ? data.storageTypes : fallbackData.storageTypes,
-      storageTips: data && data.storageTips?.length > 0 ? data.storageTips : fallbackData.storageTips,
-      parkingInfo: data && data.parkingInfo !== 'Contact manager for parking details' ? data.parkingInfo : fallbackData.parkingInfo
-    };
-
-    if (inputLower.includes('how many units')) {
-      const available = contextData.units.filter(unit => unit.availability).length;
-      return `${available} units:\n\n${contextData.units.filter(unit => unit.availability).map(unit => `${unit.size}: ${formatPrice(unit.price)}`).join('\n')}.`;
+    if (!dataResult.rows[0]?.data) {
+      return 'No unit data available. Please try again or call 907-341-4198.';
     }
+    const data = dataResult.rows[0].data;
 
-    if (inputLower.includes('height') && inputLower.includes('unit')) {
-      return contextData.units.map(unit => `${unit.size}: ${unit.height || 'Not specified'} height.`).join('\n\n');
-    }
-
-    if (process.env.XAI_API_KEY) {
+    if (inputLower.includes('how many units') || inputLower.includes('available')) {
+      const available = data.units.filter(unit => unit.availability).length;
+      return available > 0 ? `${available} units are available.` : 'No units available.';
+    } else if (inputLower.includes('cheapest') || inputLower.includes('price')) {
+      const available = data.units.filter(unit => unit.availability);
+      const cheapest = available.reduce((min, unit) => !min || parseFloat(unit.price.replace('$', '')) < parseFloat(min.price.replace('$', '')) ? unit : min, null);
+      return cheapest ? `Our cheapest unit is ${cheapest.price}.` : 'No units available.';
+    } else if (inputLower.includes('location') || inputLower.includes('address')) {
+      return data.locations[0]?.address || '610 W Fireweed Ln, Anchorage, AK 99503.';
+    } else if (inputLower.includes('manager')) {
+      return 'Please call our manager at 907-341-4198.';
+    } else if (inputLower.includes('parking')) {
+      const parkingResult = await pool.query(
+        'SELECT data->>\'parkingInfo\' AS parkingInfo FROM comms.scraped_data_infrequent WHERE fk_property_id = $1 ORDER BY create_date DESC LIMIT 1',
+        [1]
+      );
+      const parkingInfo = parkingResult.rows[0]?.parkingInfo || 'No parking information available.';
+      return `${parkingInfo} Call 907-341-4198 for details.`;
+    } else if (inputLower.includes('storage type')) {
+      const storageTypeResult = await pool.query(
+        'SELECT data->>\'storageTypes\' AS storageTypes FROM comms.scraped_data_infrequent WHERE fk_property_id = $1 ORDER BY create_date DESC LIMIT 1',
+        [1]
+      );
+      const storageTypes = storageTypeResult.rows[0]?.storageTypes ? JSON.parse(storageTypeResult.rows[0].storageTypes).join(', ') : 'No storage types available.';
+      return storageTypes;
+    } else if (inputLower.includes('rent') || inputLower.includes('link')) {
+      return 'You can rent a unit at storio.com or call 907-341-4198.';
+    } else if (process.env.XAI_API_KEY) {
       console.log('Using Grok 3 API for query:', input);
       const context = JSON.stringify({
-        scrapedData: contextData,
-        rules: rules.rows,
+        scrapedData: data,
         additionalInfo: {
           facility: 'Storio Self Storage, 610 W Fireweed Ln, Anchorage, AK 99503',
-          unitSizes: '3.5x6.5 (25sf) to 6.5x15 (100sf)',
-          features: 'Indoor heated storage, vehicle storage, 24/7 surveillance, gate access, heated loading bay, month-to-month rentals',
-          contact: '907-341-4198',
-          hours: '6:00am-10:00pm daily'
+          contact: '907-341-4198'
         }
       });
 
       const messages = [
         {
           role: 'system',
-          content: `You are a storage facility assistant for Storio Self Storage at 610 W Fireweed Ln, Anchorage, AK. Use this context: ${context}. Respond like a human in a concise, natural conversation, referencing the history ${JSON.stringify(conversationHistory)} to avoid repetition or intros like 'Thanks for' or 'I'm glad'. Keep answers short, direct, and voice-friendly (max 2-3 sentences). Use newlines for readability. Clarify ambiguous queries using prior context. If unable to answer, return 'cannot answer'.`
+          content: `You are a storage facility assistant for Storio Self Storage. Use this context: ${context}. Respond concisely, naturally, and voice-friendly (max 2-3 sentences). Use newlines for readability. If unable to answer, return 'Sorry, I didn’t understand. You can ask about available units, prices, location, or parking.'`
         },
         ...conversationHistory,
         { role: 'user', content: input }
@@ -87,40 +78,13 @@ async function queryAI(input, conversationHistory = []) {
         }
       );
 
-      const responseText = response.data.choices[0].message.content.trim();
-      return responseText.split('\n').filter(line => line.trim()).join('\n\n');
-    }
-
-    if (inputLower.includes('manager')) {
-      return await getStockText('manager');
-    } else if (inputLower.includes('parking')) {
-      return `${contextData.parkingInfo}\n\nCall 907-341-4198.`;
-    } else if (inputLower.includes('cheapest')) {
-      const available = contextData.units.filter(unit => unit.availability);
-      const cheapest = available.reduce((min, unit) => !min || parseFloat(unit.price.replace('$', '').replace(/[^0-9.]/g, '')) < parseFloat(min.price.replace('$', '').replace(/[^0-9.]/g, '')) ? unit : min, null);
-      return cheapest ? `${cheapest.size}: ${formatPrice(cheapest.price)}.` : 'No units available.';
-    } else if (inputLower.includes('fit') || inputLower.includes('furniture') || inputLower.includes('beds') || inputLower.includes('tables')) {
-      const units = contextData.units.filter(unit => unit.availability && unit.size.includes('100')).slice(0, 1);
-      return units.length > 0 ? `${units[0].size}: ${formatPrice(units[0].price)}.\n\nRent at https://www.storio.com.` : 'Try a larger unit.';
-    } else if (inputLower.includes('policies') || inputLower.includes('cancellation') || inputLower.includes('insurance')) {
-      return 'Check https://www.storio.com or call 907-341-4198.';
-    } else if (inputLower.includes('rent')) {
-      return await getStockText('thank_you');
-    } else if (inputLower.includes('size') && inputLower.includes('unit')) {
-      const unit = contextData.units[0];
-      return unit ? `${unit.size}: ${formatPrice(unit.price)}.` : 'No units available.';
-    } else if (inputLower.includes('location')) {
-      return `${contextData.locations.join('\n') || '610 W Fireweed Ln, Anchorage, AK 99503.'}`;
-    } else if (inputLower.includes('storage type')) {
-      return `${contextData.storageTypes.join('\n') || 'Indoor heated, vehicle, climate-controlled.'}`;
-    } else if (inputLower.includes('tip')) {
-      return `${contextData.storageTips.join('\n') || 'Call 907-341-4198 for tips.'}`;
+      return response.data.choices[0].message.content.trim();
     } else {
-      return 'cannot answer';
+      return 'Sorry, I didn’t understand. You can ask about available units, prices, location, or parking.';
     }
   } catch (error) {
     console.error('Error in queryAI:', error.stack);
-    return 'cannot answer';
+    return 'Sorry, I didn’t understand. You can ask about available units, prices, location, or parking.';
   }
 }
 

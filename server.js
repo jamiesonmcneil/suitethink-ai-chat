@@ -1,12 +1,15 @@
 const express = require('express');
 const path = require('path');
 const { getHome, handleWebQuery } = require('./controllers/webController');
+const voiceRoutes = require('./routes/voiceRoutes');
 const { Pool } = require('pg');
 const nodemailer = require('nodemailer');
+const fs = require('fs').promises;
 require('dotenv').config({ path: './.env' });
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res, next) => {
   res.setHeader(
@@ -14,6 +17,19 @@ app.use((req, res, next) => {
     "default-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' https://cdnjs.cloudflare.com 'unsafe-eval' 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'"
   );
   next();
+});
+
+app.use('/voice', voiceRoutes);
+
+app.get('/audio/:filename', async (req, res) => {
+  try {
+    const audioPath = path.join('/tmp', req.params.filename);
+    res.set('Content-Type', 'audio/mpeg');
+    res.sendFile(audioPath);
+  } catch (error) {
+    console.error('Audio serve error:', error);
+    res.status(404).send('Audio not found');
+  }
 });
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
