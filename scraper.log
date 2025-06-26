@@ -1,0 +1,17 @@
+Starting scraper...
+Scraping URL: https://www.storio.com/storage-units/alaska/anchorage/storio-self-storage-346012/
+No data scraped; selectors may be incorrect
+Scraped data stored: {
+  "units": [],
+  "locations": [],
+  "storageTypes": [],
+  "storageTips": [],
+  "parkingInfo": ""
+}
+Scraping completed successfully: {
+  "units": [],
+  "locations": [],
+  "storageTypes": [],
+  "storageTips": [],
+  "parkingInfo": ""
+}

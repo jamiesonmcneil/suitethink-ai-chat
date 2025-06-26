@@ -66,6 +66,22 @@
       </div>
     </div>
     <form id="queryForm" style="padding: 12px; border-top: 1px solid #e5e7eb;">
+      <!-- Commented out initial form for future reference
+      <div id="initial-inputs">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 4px;">Name (Optional)</label>
+            <input id="nameInput" type="text" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background: #f3f4f6;" placeholder="Your name">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 4px;">Email or Phone (One Required)</label>
+            <input id="emailInput" type="email" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background: #f3f4f6;" placeholder="Email">
+            <input id="phoneInput" type="tel" style="width: 100%; margin-top: 8px; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background: #f3f4f6;" placeholder="Phone">
+          </div>
+          <button type="submit" id="startChat" style="width: 100%; padding: 8px; background: #4f46e5; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;">Start Chat</button>
+        </div>
+      </div>
+      -->
       <div id="question-input">
         <div style="display: flex; gap: 8px;">
           <input id="queryInput" type="text" style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px 0 0 6px; font-size: 14px; background: #f3f4f6;" placeholder="Type your response...">
@@ -114,13 +130,13 @@
         padding: 10px !important;
         margin-bottom: 2px !important;
       }
-      #downloadTranscript.working, #emailTranscript.working, #supportEmail.working {
+      #downloadTranscript.working, #emailTranscript.working {
         background: #6b7280 !important;
       }
-      #downloadTranscript.working span, #emailTranscript.working span, #supportEmail.working span {
+      #downloadTranscript.working span, #emailTranscript.working span {
         display: none;
       }
-      #downloadTranscript.working::before, #emailTranscript.working::before, #supportEmail.working::before {
+      #downloadTranscript.working::before, #emailTranscript.working::before {
         content: 'Working...';
         display: inline-block;
         animation: blink 1s infinite;
@@ -155,7 +171,7 @@
     let pendingSupportMethod = '';
     let transcriptId = null;
     let followupMethod = null;
-    let contactStep = 'firstName';
+    let contactStep = 'firstName'; // Tracks contact collection: firstName, lastName, email
 
     if (!form || !queryInput || !chat || !conversation || !questionInput || !userInfo || !userLabel || !shareOptions || !minimizeChat || !closeChat || !downloadTranscript || !emailTranscript || !supportEmail || !supportNo || !thinking || !working || !supportPrompt || !confirmClose || !confirmYes || !confirmNo) {
       throw new Error('Missing DOM elements');
@@ -384,10 +400,8 @@
       shareOptions.style.display = 'none';
     });
 
-    // Ensure closeChat event listener is bound correctly
-    closeChat.addEventListener('click', (e) => {
+    closeChat.addEventListener('click', () => {
       console.log('Close button clicked');
-      e.preventDefault();
       confirmClose.style.display = 'block';
       closeChat.disabled = true;
     });

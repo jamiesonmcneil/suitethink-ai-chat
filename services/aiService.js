@@ -1,12 +1,12 @@
 const axios = require('axios');
-const { getScrapedData, getStockText, formatPrice } = require('./storageService');
+const { scrapeStorageData, getStockText, formatPrice } = require('./storageService');
 const { Pool } = require('pg');
 require('dotenv').config({ path: './.env' });
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function queryAI(input, conversationHistory = []) {
   try {
-    const data = await getScrapedData();
+    const data = await scrapeStorageData();
     const inputLower = input.toLowerCase();
     const rules = await pool.query(
       'SELECT rule_key, rule_value FROM comms.ai_rules WHERE fk_property_id = $1 AND is_active = true AND is_deleted = false',
@@ -32,11 +32,11 @@ async function queryAI(input, conversationHistory = []) {
     };
 
     const contextData = {
-      units: data.units.length > 0 ? data.units : fallbackData.units,
-      locations: data.locations.length > 0 ? data.locations : fallbackData.locations,
-      storageTypes: data.storageTypes.length > 0 ? data.storageTypes : fallbackData.storageTypes,
-      storageTips: data.storageTips.length > 0 ? data.storageTips : fallbackData.storageTips,
-      parkingInfo: data.parkingInfo !== 'Contact manager for parking details' ? data.parkingInfo : fallbackData.parkingInfo
+      units: data && data.units?.length > 0 ? data.units : fallbackData.units,
+      locations: data && data.locations?.length > 0 ? data.locations : fallbackData.locations,
+      storageTypes: data && data.storageTypes?.length > 0 ? data.storageTypes : fallbackData.storageTypes,
+      storageTips: data && data.storageTips?.length > 0 ? data.storageTips : fallbackData.storageTips,
+      parkingInfo: data && data.parkingInfo !== 'Contact manager for parking details' ? data.parkingInfo : fallbackData.parkingInfo
     };
 
     if (inputLower.includes('how many units')) {
@@ -45,7 +45,7 @@ async function queryAI(input, conversationHistory = []) {
     }
 
     if (inputLower.includes('height') && inputLower.includes('unit')) {
-      return contextData.units.map(unit => `${unit.size}: ${unit.height} height.`).join('\n\n');
+      return contextData.units.map(unit => `${unit.size}: ${unit.height || 'Not specified'} height.`).join('\n\n');
     }
 
     if (process.env.XAI_API_KEY) {

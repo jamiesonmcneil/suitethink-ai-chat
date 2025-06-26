@@ -1,18 +1,12 @@
-DATABASE_URL: postgresql://stadmin:cr33lD3v@localhost:5432/suitethink
-DATABASE_URL: postgresql://stadmin:cr33lD3v@localhost:5432/suitethink
 Server running on port 3000
-Creating user: { email: 'billsmith@3566.ca', phone: undefined, name: undefined }
-Saving activity for user: 20
-Saving query: how many uunits do you have
-Using Grok 3 API for query: how many uunits do you have
-Saving AI response: Hi Bill, nice to hear from you!
-
-We currently have 3 available units at Storio Self Storage. If you're looking for specific sizes or prices, I can list those for you—just let me know!
-Creating user: { email: 'billsmith@3566.ca', phone: undefined, name: undefined }
-Saving activity for user: 20
-Saving query: what is the largets
-Using Grok 3 API for query: what is the largets
-Saving AI response: Hi Bill, I’m assuming you meant to ask about the largest unit available.
-
-The largest unit we have at Storio Self Storage is 6.5' x 15' (100sf), priced at $300. Let me know if you’d like more details or want to reserve it!
-Email sent to billsmith@3566.ca
+Error in queryAI: TypeError: getScrapedData is not a function
+    at queryAI (/Users/jamieson/Sites/suitethink_voice_ai_properties/services/aiService.js:9:24)
+    at exports.handleWebQuery (/Users/jamieson/Sites/suitethink_voice_ai_properties/controllers/webController.js:14:28)
+    at Layer.handleRequest (/Users/jamieson/Sites/suitethink_voice_ai_properties/node_modules/router/lib/layer.js:152:17)
+    at next (/Users/jamieson/Sites/suitethink_voice_ai_properties/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/Users/jamieson/Sites/suitethink_voice_ai_properties/node_modules/router/lib/route.js:117:3)
+    at handle (/Users/jamieson/Sites/suitethink_voice_ai_properties/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/Users/jamieson/Sites/suitethink_voice_ai_properties/node_modules/router/lib/layer.js:152:17)
+    at /Users/jamieson/Sites/suitethink_voice_ai_properties/node_modules/router/index.js:295:15
+    at processParams (/Users/jamieson/Sites/suitethink_voice_ai_properties/node_modules/router/index.js:582:12)
+    at next (/Users/jamieson/Sites/suitethink_voice_ai_properties/node_modules/router/index.js:291:5)
