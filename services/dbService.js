@@ -3,12 +3,12 @@ require('dotenv').config({ path: './.env' });
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-exports.findOrCreateUserByPhone = async (phone, firstName, lastName) => {
+const findOrCreateUserByPhone = async (phone, firstName, lastName) => {
   let client;
   try {
     client = await pool.connect();
     let user = await client.query(
-      'SELECT fk_user_id AS id FROM comms.user_phone WHERE phone_number = $1',
+      'SELECT fk_user_id AS user_id, id AS user_phone_id FROM comms.user_phone WHERE phone_number = $1',
       [phone]
     );
     if (user.rows.length === 0) {
@@ -23,7 +23,7 @@ exports.findOrCreateUserByPhone = async (phone, firstName, lastName) => {
       );
       return { user_id: userId, user_phone_id: phoneResult.rows[0].id };
     }
-    return { user_id: user.rows[0].id, user_phone_id: user.rows[0].id };
+    return { user_id: user.rows[0].user_id, user_phone_id: user.rows[0].user_phone_id };
   } catch (error) {
     console.error('Find or create user by phone error:', error);
     throw error;
@@ -32,7 +32,7 @@ exports.findOrCreateUserByPhone = async (phone, firstName, lastName) => {
   }
 };
 
-exports.findOrCreateUserByEmail = async (email, firstName, lastName) => {
+const findOrCreateUserByEmail = async (email, firstName, lastName) => {
   let client;
   try {
     client = await pool.connect();
@@ -60,7 +60,7 @@ exports.findOrCreateUserByEmail = async (email, firstName, lastName) => {
   }
 };
 
-exports.saveActivity = async (userId, channel, message, fkUserPhoneId) => {
+const saveActivity = async (userId, channel, message, fkUserPhoneId) => {
   let client;
   try {
     client = await pool.connect();
@@ -83,18 +83,23 @@ exports.saveActivity = async (userId, channel, message, fkUserPhoneId) => {
   }
 };
 
-exports.saveActivityItem = async (activityId, sender, message) => {
+const saveActivityItem = async (activityId, sender, message) => {
   let client;
   try {
     client = await pool.connect();
+    if (!activityId || isNaN(parseInt(activityId))) {
+      throw new Error('Invalid activityId: must be a valid integer');
+    }
     await client.query(
       'INSERT INTO comms.user_activity_item (fk_user_activity_id, message_text, sender, create_date) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)',
-      [activityId, message, sender]
+      [parseInt(activityId), message, sender]
     );
   } catch (error) {
-    console.error('Save activity item error:', error);
+    console.error('Save activity item error:', { message: error.message, stack: error.stack });
     throw error;
   } finally {
     if (client) client.release();
   }
 };
+
+module.exports = { findOrCreateUserByPhone, findOrCreateUserByEmail, saveActivity, saveActivityItem };

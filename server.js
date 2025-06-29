@@ -4,7 +4,6 @@ const { getHome, handleWebQuery } = require('./controllers/webController');
 const voiceRoutes = require('./routes/voiceRoutes');
 const { Pool } = require('pg');
 const nodemailer = require('nodemailer');
-const fs = require('fs').promises;
 require('dotenv').config({ path: './.env' });
 
 const app = express();
@@ -12,18 +11,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res, next) => {
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' https://cdnjs.cloudflare.com 'unsafe-eval' 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'"
-  );
+  console.log(`Request: ${req.method} ${req.url} ${JSON.stringify(req.body)}`);
   next();
 });
 
 app.use('/voice', voiceRoutes);
 
-app.get('/audio/:filename', async (req, res) => {
+app.get('/audio/cache/:filename', async (req, res) => {
+  const fs = require('fs').promises;
   try {
-    const audioPath = path.join('/tmp', req.params.filename);
+    const audioPath = path.join('/tmp/cache', req.params.filename);
+    await fs.access(audioPath);
     res.set('Content-Type', 'audio/mpeg');
     res.sendFile(audioPath);
   } catch (error) {
@@ -38,10 +36,7 @@ const transporter = nodemailer.createTransport({
   host: 'mail.smtp2go.com',
   port: 587,
   secure: false,
-  auth: {
-    user: process.env.SMTP2GO_USERNAME,
-    pass: process.env.SMTP2GO_PASSWORD
-  }
+  auth: { user: process.env.SMTP2GO_USERNAME, pass: process.env.SMTP2GO_PASSWORD }
 });
 
 app.get('/', getHome);
@@ -62,11 +57,10 @@ app.post('/send-transcript-email', async (req, res) => {
       subject: 'Storio Self Storage Chat Transcript',
       text: transcript
     });
-    console.log(`Email sent to ${email}, BCC ${bccEmail}`);
     res.json({ message: 'Transcript sent to your email.' });
   } catch (error) {
     console.error('Email transcript error:', error);
-    res.status(500).json({ message: 'Failed to send email.', error: error.message });
+    res.status(500).json({ message: 'Failed to send email.' });
   } finally {
     if (client) client.release();
   }
@@ -77,27 +71,16 @@ app.post('/save-transcript', async (req, res) => {
   try {
     client = await pool.connect();
     const { transcript, is_require_followup, followup_method } = req.body;
-    if (!transcript) {
-      throw new Error('Transcript is required');
-    }
-    if (followup_method && !['email'].includes(followup_method)) {
-      throw new Error('Invalid followup_method');
-    }
+    if (!transcript) throw new Error('Transcript is required');
+    if (followup_method && !['email'].includes(followup_method)) throw new Error('Invalid followup_method');
     const result = await client.query(
       'INSERT INTO comms.transcript (transcript, is_require_followup, followup_method, followup_request_date, create_date) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id',
       [transcript, is_require_followup || false, followup_method || null, is_require_followup ? new Date() : null]
     );
-    const url = `http://localhost:3000/transcript/${result.rows[0].id}`;
-    res.json({ url });
+    res.json({ url: `http://localhost:3000/transcript/${result.rows[0].id}` });
   } catch (error) {
-    console.error('Save transcript error:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      detail: error.detail,
-      constraint: error.constraint
-    });
-    res.status(500).json({ message: 'Failed to save transcript.', error: error.message });
+    console.error('Save transcript error:', error);
+    res.status(500).json({ message: 'Failed to save transcript.' });
   } finally {
     if (client) client.release();
   }
@@ -112,7 +95,6 @@ app.post('/submit-support-request', async (req, res) => {
       'UPDATE comms.transcript SET is_require_followup = $1, followup_method = $2, followup_request_date = CURRENT_TIMESTAMP WHERE id = $3',
       [true, method, transcript_id]
     );
-    console.log(`Support request submitted: ${query} via ${method}`);
     if (method === 'email' && email) {
       const propertyResult = await client.query('SELECT contact_email FROM comms.property WHERE id = $1', [1]);
       const bccEmail = propertyResult.rows[0]?.contact_email || 'support@storio.com';
@@ -123,12 +105,11 @@ app.post('/submit-support-request', async (req, res) => {
         subject: 'Storio Support Request',
         text: `Your question "${query}" has been received. A Support Specialist will follow up soon.`
       });
-      console.log(`Support email sent to ${email}, BCC ${bccEmail}`);
     }
     res.json({ message: `Support request sent via ${method}.` });
   } catch (error) {
     console.error('Support request error:', error);
-    res.status(500).json({ message: 'Failed to submit support request.', error: error.message });
+    res.status(500).json({ message: 'Failed to submit support request.' });
   } finally {
     if (client) client.release();
   }
@@ -139,10 +120,7 @@ app.post('/update-user-contact', async (req, res) => {
   try {
     client = await pool.connect();
     const { email, firstName, lastName } = req.body;
-    const existing = await client.query(
-      'SELECT id FROM comms.user WHERE email = $1',
-      [email || null]
-    );
+    const existing = await client.query('SELECT id FROM comms.user WHERE email = $1', [email || null]);
     let userId;
     if (existing.rows.length > 0) {
       userId = existing.rows[0].id;
@@ -166,7 +144,7 @@ app.post('/update-user-contact', async (req, res) => {
     res.json({ message: 'User contact updated.' });
   } catch (error) {
     console.error('Update user contact error:', error);
-    res.status(500).json({ message: 'Failed to update user contact.', error: error.message });
+    res.status(500).json({ message: 'Failed to update user contact.' });
   } finally {
     if (client) client.release();
   }

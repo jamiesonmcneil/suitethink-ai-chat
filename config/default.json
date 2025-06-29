@@ -1,0 +1,8 @@
+{
+  "database": {
+    "connection": "${DATABASE_URL}"
+  },
+  "scraper": {
+    "url": "${SCRAPER_URL}"
+  }
+}
