@@ -28,11 +28,6 @@ const handleVoiceResponse = async (req, res, { saveActivityItem, generateRespons
     const speech = req.body?.SpeechResult || '';
     const activityId = req.query.activityId || req.body?.activityId;
     if (!activityId || isNaN(parseInt(activityId))) throw new Error('Invalid activityId');
-    if (!speech) {
-      const twiml = generateResponseTwiml('I didn’t hear anything. Please try again.', activityId, true);
-      res.type('text/xml').send(twiml.toString());
-      return;
-    }
 
     await saveActivityItem(activityId, 'user', speech);
     const twiml = await generateResponseTwiml(speech, activityId);
